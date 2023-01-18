@@ -1,5 +1,7 @@
-import {createMenu} from './view/menu-view.js';
+import {renderTemplate} from './utils.js';
+import {createFilter} from './view/menu/filter-view.js';
 import {createSortFilms} from './view/sort-view.js';
+import {createMainNavWrap} from './view/menu/nav-wrapper-view.js';
 import {
   createSectionFilms,
   createSectionFilmList,
@@ -9,23 +11,31 @@ import {createCardFilm} from './view/films/card-view.js';
 import {createUserRating} from './view/user-rating.js';
 import {createShowMoreButton} from './view/show-more-button-view.js';
 import {createFooterStatistics} from './view/footer-statistics-view.js';
-import {createPopup} from './view/popup-view.js';
+import {createPopup} from './view/popup/popup-view.js';
+import {generateFilmCard} from './mock/card.js';
+import {createStats} from './view/menu/stats-view.js';
+import {generateFilter} from './mock/filter.js';
 
 const header = document.querySelector('.header');
 const main = document.querySelector('.main');
 const footer = document.querySelector('.footer');
 
-const COUNT_CARD = 5;
+const CARD_COUNT_PER_STEP = 5;
+const CARD_COUNT = 20;
 
-// Render component
+const filmsData = Array.from({length: CARD_COUNT}, generateFilmCard);
+const filtersData = generateFilter(filmsData);
 
-const renderTemplate = (container, template, position) => {
-  container.insertAdjacentHTML(position, template);
-};
+// Component Filter
+renderTemplate(main, createMainNavWrap(), 'beforeend');
 
-// Component Menu
+const navWrapper = document.querySelector('.main-navigation');
 
-renderTemplate(main, createMenu(), 'beforeend');
+renderTemplate(navWrapper, createFilter(filtersData), 'beforeend');
+
+// Component Stats
+
+renderTemplate(navWrapper, createStats(), 'beforeend');
 
 // Component Sort
 
@@ -45,27 +55,53 @@ renderTemplate(filmsList, createSectionFilmListContainer(), 'beforeend');
 
 const filmsListContainer = filmsList.querySelector('.films-list__container');
 
-for (let i = 1; i <= COUNT_CARD; i++) {
-  renderTemplate(filmsListContainer, createCardFilm(), 'beforeend');
+for (let i = 0; i < Math.min(filmsData.length, CARD_COUNT_PER_STEP); i++) {
+  renderTemplate(filmsListContainer, createCardFilm(filmsData[i]), 'beforeend');
+}
+
+if (filmsData.length > CARD_COUNT_PER_STEP) {
+  let renderedCardCount = CARD_COUNT_PER_STEP;
+
+  renderTemplate(filmsList, createShowMoreButton(), 'beforeend');
+
+  const loadMoreBtn = filmsList.querySelector('.films-list__show-more');
+
+  loadMoreBtn.addEventListener('click', (evt) => {
+    evt.preventDefault();
+    filmsData
+      .slice(renderedCardCount, renderedCardCount + CARD_COUNT_PER_STEP)
+      .forEach((card) => {
+        renderTemplate(filmsListContainer, createCardFilm(card), 'beforeend');
+      });
+
+    renderedCardCount += CARD_COUNT_PER_STEP;
+
+    if (renderedCardCount >= filmsData.length) {
+      loadMoreBtn.remove();
+    }
+  });
 }
 
 // Componet User Rating
 
 renderTemplate(header, createUserRating(), 'beforeend');
 
-// Component Show more button
-
-renderTemplate(filmsList, createShowMoreButton(), 'beforeend');
-
 // Component popup
 
-renderTemplate(footer, createPopup(), 'afterend');
+filmsListContainer.addEventListener('click', () => {
+  renderTemplate(footer, createPopup(filmsData[0]), 'afterend');
+  const closePopupBtn = document.querySelector('.film-details__close-btn');
+
+  closePopupBtn.addEventListener('click', () => {
+    document.querySelector('.film-details').remove();
+  });
+});
 
 // Component Footer Statistics
 
 const footetStatisticsContainer = footer.querySelector('.footer__statistics');
 renderTemplate(
   footetStatisticsContainer,
-  createFooterStatistics(),
+  createFooterStatistics(filmsData),
   'beforeend'
 );
